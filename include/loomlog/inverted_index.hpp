@@ -22,7 +22,12 @@ public:
     std::size_t document_count() const noexcept;
 
 private:
-    std::unordered_map<std::string, std::vector<std::string>> index_;
+    struct PostingList {
+        std::vector<std::string> docs;          // 构建期只追加，不排序
+        std::unordered_set<std::string> seen;   // O(1) 去重
+    };
+
+    std::unordered_map<std::string, PostingList> index_;
     std::unordered_set<std::string> documents_;
 };
 
