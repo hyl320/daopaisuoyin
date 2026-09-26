@@ -37,20 +37,17 @@ endif()
 if(LOOMLOG_BUILD_TESTS)
     enable_testing()
 
-    if(WIN32)
-        include(FetchContent)
+    include(FetchContent)
 
-        FetchContent_Declare(
-            googletest
-            GIT_REPOSITORY https://github.com/google/googletest.git
-            GIT_TAG v1.15.2
-        )
+    FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG v1.15.2
+    )
 
-        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-        FetchContent_MakeAvailable(googletest)
-    else()
-        find_package(GTest REQUIRED)
-    endif()
+    # gtest_force_shared_crt only affects MSVC; harmless on other platforms.
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
 
     add_executable(test_thread_pool tests/test_thread_pool.cpp)
     target_link_libraries(test_thread_pool PRIVATE loomlog GTest::gtest_main)
