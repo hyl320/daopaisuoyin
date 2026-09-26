@@ -14,17 +14,15 @@ void InvertedIndex::add_document(
 
     documents_.insert(path);
 
-    // v1 的倒排索引只在主调度线程合并，类内部不加锁，边界更清楚。
     for (const auto& word : words) {
         if (word.empty()) {
             continue;
         }
 
-        auto& docs = index_[word];
-        //这会带来额外开销。对于出现频率很高的词，随着文档越来越多，反复排序整个列表可能达到接近：
-        if (std::ranges::find(docs, path) == docs.end()) {
-            docs.push_back(path);
-            std::ranges::sort(docs);
+        auto& posting = index_[word];
+        // O(1) 去重；首次出现才追加，构建期不再排序
+        if (posting.seen.insert(path).second) {
+            posting.docs.push_back(path);
         }
     }
 }
@@ -34,17 +32,20 @@ std::vector<std::string> InvertedIndex::find(const std::string& word) const {
     if (it == index_.end()) {
         return {};
     }
-    return it->second;
+
+    auto docs = it->second.docs;   // 按值拷贝，原来就会拷贝
+    std::ranges::sort(docs);       // 查询时才排序，且只排被查的词
+    return docs;
 }
 
 IndexSnapshot InvertedIndex::snapshot() const {
     IndexSnapshot result;
     result.reserve(index_.size());
 
-    for (const auto& [word, docs] : index_) {
-        auto sorted_docs = docs;
-        std::ranges::sort(sorted_docs);
-        result.emplace_back(word, std::move(sorted_docs));
+    for (const auto& [word, posting] : index_) {
+        auto docs = posting.docs;   // 拷贝一份
+        std::ranges::sort(docs);    // 输出时排序（原来也是这样做的）
+        result.emplace_back(word, std::move(docs));
     }
 
     std::ranges::sort(result, [](const auto& left, const auto& right) {
